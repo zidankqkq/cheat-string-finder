@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>CheatStringFinder</AssemblyName>
+    <RootNamespace>CheatStringFinder.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Product>Cheat String Finder</Product>
+  </PropertyGroup>
+
+  <!-- Same single-file release settings as History Parser. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RatChecker.Core\RatChecker.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Shared look and helpers with the other two apps. -->
+  <ItemGroup>
+    <Page Include="..\HistoryParser.App\Themes\Theme.xaml" Link="Themes\Theme.xaml" />
+    <Compile Include="..\HistoryParser.App\Converters\Converters.cs" Link="Shared\Converters.cs" />
+    <Compile Include="..\HistoryParser.App\ViewModels\Mvvm.cs" Link="Shared\Mvvm.cs" />
+  </ItemGroup>
+</Project>

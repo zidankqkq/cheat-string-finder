@@ -1,0 +1,345 @@
+<Window x:Class="CheatStringFinder.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:CheatStringFinder.App.ViewModels"
+        xmlns:cv="clr-namespace:HistoryParser.App.Converters"
+        Title="Cheat String Finder" Width="1360" Height="880" MinWidth="1080" MinHeight="680"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource Bg}"
+        FontFamily="{StaticResource UiFont}" Foreground="{StaticResource Text}"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True"
+        AllowDrop="True" DragOver="Window_DragOver" Drop="Window_Drop" PreviewKeyDown="Window_PreviewKeyDown">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="40" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Window.DataContext>
+        <vm:FinderViewModel />
+    </Window.DataContext>
+
+    <Window.Resources>
+        <cv:ToneBrushConverter x:Key="Tone" />
+        <cv:EqualsToVisibilityConverter x:Key="PageVis" />
+        <cv:EqualsToBoolConverter x:Key="Is" />
+        <cv:VisibleWhenConverter x:Key="Vis" />
+
+        <Style x:Key="NavLabel" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="12,0,0,0" />
+        </Style>
+        <Style x:Key="Plain" TargetType="TextBlock" BasedOn="{StaticResource CellText}" />
+        <Style x:Key="Faint" TargetType="TextBlock" BasedOn="{StaticResource CellSub}" />
+        <Style x:Key="Mono" TargetType="TextBlock" BasedOn="{StaticResource CellMono}" />
+        <Style x:Key="Step" TargetType="TextBlock" BasedOn="{StaticResource H2}">
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+        <Style x:Key="HelpText" TargetType="TextBlock" BasedOn="{StaticResource Sub}">
+            <Setter Property="Foreground" Value="{StaticResource Text}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+            <Setter Property="LineHeight" Value="20" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <!-- A pickable row in the game lists, highlighted when chosen. -->
+        <Style x:Key="GameItem" TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource Text}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="box" CornerRadius="8" Padding="10,7" Margin="0,0,0,4" Background="{StaticResource Surface2}"
+                                BorderThickness="1" BorderBrush="Transparent">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="box" Property="Background" Value="{StaticResource RowHover}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="box" Property="Background" Value="{StaticResource AccentSoft}" />
+                                <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource Accent}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <DataTemplate x:Key="GameTemplate">
+            <TextBlock Text="{Binding TargetNullValue='None'}" TextTrimming="CharacterEllipsis" FontSize="12.5" />
+        </DataTemplate>
+        <Style x:Key="GameList" TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="ItemContainerStyle" Value="{StaticResource GameItem}" />
+            <Setter Property="ItemTemplate" Value="{StaticResource GameTemplate}" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="MaxHeight" Value="130" />
+        </Style>
+    </Window.Resources>
+
+    <Border x:Name="Root" BorderBrush="{StaticResource Line}" BorderThickness="1" Background="{StaticResource Bg}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- ================= Title bar ================= -->
+            <Grid Background="{StaticResource Surface}">
+                <StackPanel Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="Cheat String Finder" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Text="strings that prove a cheat client is loaded" Foreground="{StaticResource TextFaint}" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="12" />
+                    <Border Margin="14,0,0,0" CornerRadius="9" Padding="8,2" Background="{StaticResource OkSoft}">
+                        <TextBlock Text="Files and game memory are only read" Foreground="{StaticResource Ok}" FontSize="11" FontWeight="SemiBold" />
+                    </Border>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Style="{StaticResource CaptionButton}" Content="&#xE921;" Click="Minimize_Click" ToolTip="Minimize" />
+                    <Button Style="{StaticResource CaptionButton}" x:Name="MaxButton" Content="&#xE922;" Click="Maximize_Click" ToolTip="Maximize" />
+                    <Button Style="{StaticResource CloseButton}" Content="&#xE8BB;" Click="Close_Click" ToolTip="Close" />
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="236" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- ================= Sidebar ================= -->
+                <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,1,0">
+                    <DockPanel Margin="12,12,12,14">
+                        <StackPanel DockPanel.Dock="Bottom">
+                            <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Margin="0,0,0,10"
+                                         IsChecked="{Binding Page, Converter={StaticResource Is}, ConverterParameter=Help}">
+                                <DockPanel>
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE897;" />
+                                    <TextBlock Style="{StaticResource NavLabel}" Text="Help" />
+                                </DockPanel>
+                            </RadioButton>
+                            <Button Style="{StaticResource GhostButton}" Command="{Binding SaveCommand}" Margin="0,0,0,8"
+                                    Visibility="{Binding HasResults, Converter={StaticResource Vis}}" Content="Save strings file…"
+                                    ToolTip="A text file with every string and how to search for it in System Informer" />
+                            <Button Style="{StaticResource GhostButton}" Command="{Binding CopyCommand}"
+                                    Visibility="{Binding HasResults, Converter={StaticResource Vis}}" Content="Copy all strings" />
+                        </StackPanel>
+                        <StackPanel>
+                            <RadioButton Style="{StaticResource NavButton}" GroupName="nav" IsChecked="{Binding Page, Converter={StaticResource Is}, ConverterParameter=Find}">
+                                <DockPanel>
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" />
+                                    <TextBlock Style="{StaticResource NavLabel}" Text="Find strings" />
+                                </DockPanel>
+                            </RadioButton>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- ================= Find ================= -->
+                <Grid Grid.Column="1" Margin="24,20,24,20" Visibility="{Binding Page, Converter={StaticResource PageVis}, ConverterParameter=Find}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="Compare a clean game with an injected one" Style="{StaticResource H1}" />
+                        <TextBlock Style="{StaticResource Sub}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Text="Start two copies of the same game (same version, same mods) and leave both on the title screen. Inject the client into one. Everything both games hold is the game; what only the injected one keeps is the client. Use a test PC - the client is never run by this tool." />
+                    </StackPanel>
+
+                    <UniformGrid Grid.Row="1" Columns="3" Margin="0,16,0,12">
+                        <Border Style="{StaticResource Card}" Margin="0,0,8,0">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Top">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                                            <Button Style="{StaticResource LinkButton}" Command="{Binding SwapCommand}" Content="Swap ⇄" Margin="0,0,12,0"
+                                                    ToolTip="Swap the clean and the injected game" />
+                                            <Button Style="{StaticResource LinkButton}" Command="{Binding RefreshCommand}" Content="Refresh" />
+                                        </StackPanel>
+                                        <TextBlock Text="1. Clean game" Style="{StaticResource Step}" />
+                                    </DockPanel>
+                                    <TextBlock Text="The copy without the client." Style="{StaticResource Sub}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10" />
+                                </StackPanel>
+                                <ListBox Style="{StaticResource GameList}" ItemsSource="{Binding Games}" SelectedItem="{Binding CleanGame}" />
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}" Margin="8,0">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Top">
+                                    <TextBlock Text="2. Injected game" Style="{StaticResource Step}" />
+                                    <TextBlock Text="The same game with the client injected, also on the title screen." Style="{StaticResource Sub}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10" />
+                                </StackPanel>
+                                <ListBox Style="{StaticResource GameList}" ItemsSource="{Binding Games}" SelectedItem="{Binding InjectedGame}" />
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}" Margin="8,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="3. Client name and file (optional)" Style="{StaticResource Step}" />
+                                <TextBox Style="{StaticResource SearchBox}" Tag="Client name for the saved list" Text="{Binding ClientName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,8" />
+                                <Border CornerRadius="8" Padding="10,8" Margin="0,0,0,8" Background="{StaticResource Surface2}">
+                                    <TextBlock Text="{Binding CheatFileName}" TextTrimming="CharacterEllipsis" FontFamily="{StaticResource MonoFont}" FontSize="12" />
+                                </Border>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource GhostButton}" Command="{Binding ChooseFileCommand}" Content="Choose file…" Padding="14,7" />
+                                    <Button Style="{StaticResource LinkButton}" Command="{Binding ClearFileCommand}" Content="Clear" Margin="12,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="Strings also in the client's file rank higher. It is only read." Style="{StaticResource Sub}" FontSize="11.5" Margin="0,8,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <DockPanel Grid.Row="2" Margin="0,0,0,14">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Style="{StaticResource GhostButton}" Command="{Binding CancelCommand}" Content="Stop" Margin="0,0,8,0" Padding="16,9"
+                                    Visibility="{Binding IsBusy, Converter={StaticResource Vis}}" />
+                            <Button Style="{StaticResource PrimaryButton}" Command="{Binding FindCommand}" Padding="22,9">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="12" Margin="0,0,8,0" />
+                                    <TextBlock Text="Compare the two games" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Sub}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,16,0"
+                                   Text="Both games are read in full, twice each, then the list is checked against both - a few minutes for large games. Run as administrator." />
+                    </DockPanel>
+
+                    <Border Grid.Row="3" Style="{StaticResource Card}" Padding="0">
+                        <Grid>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24"
+                                        Visibility="{Binding HasResults, Converter={StaticResource Vis}, ConverterParameter=invert}">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE8A5;" FontSize="26" Foreground="{StaticResource TextFaint}" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding Progress}" Style="{StaticResource Sub}" Margin="0,10,0,0" HorizontalAlignment="Center"
+                                           Visibility="{Binding Progress, Converter={StaticResource Vis}}" />
+                                <TextBlock Text="Pick the clean game and the injected game, then Compare." Style="{StaticResource Sub}" Margin="0,10,0,0" HorizontalAlignment="Center"
+                                           Visibility="{Binding IsBusy, Converter={StaticResource Vis}, ConverterParameter=invert}" />
+                                <TextBlock Text="{Binding Notes}" Style="{StaticResource Sub}" Margin="0,10,0,0" HorizontalAlignment="Center" TextAlignment="Center"
+                                           TextWrapping="Wrap" MaxWidth="620" Foreground="{StaticResource Medium}" Visibility="{Binding Notes, Converter={StaticResource Vis}}" />
+                            </StackPanel>
+                            <DockPanel Visibility="{Binding HasResults, Converter={StaticResource Vis}}">
+                                <StackPanel DockPanel.Dock="Top" Margin="18,14,18,10">
+                                    <TextBlock Text="{Binding Headline}" Style="{StaticResource H2}" />
+                                    <TextBlock Text="{Binding Progress}" Style="{StaticResource Sub}" Margin="0,4,0,0" Visibility="{Binding Progress, Converter={StaticResource Vis}}" />
+                                    <TextBlock Text="{Binding Stats}" Style="{StaticResource Sub}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding Warnings}" Style="{StaticResource Sub}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
+                                               Foreground="{StaticResource Medium}" Visibility="{Binding Warnings, Converter={StaticResource Vis}}" />
+                                    <TextBlock Text="{Binding Differences}" Style="{StaticResource Sub}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
+                                               Foreground="{StaticResource Text}" Visibility="{Binding Differences, Converter={StaticResource Vis}}" />
+                                    <TextBlock Text="{Binding Notes}" Style="{StaticResource Sub}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap" />
+                                    <!-- Toolbar: find, filter, and what goes in the list -->
+                                    <DockPanel Margin="0,12,0,0">
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <TextBlock Text="{Binding TickedText}" Style="{StaticResource Sub}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                            <Button Style="{StaticResource GhostButton}" Command="{Binding CrossCheckCommand}" Content="Cross-check with an earlier list…" Padding="12,6" Margin="0,0,8,0"
+                                                    ToolTip="Keep only strings that a list from another injection of the same client also has - random names that change every time drop out" />
+                                            <Button Style="{StaticResource GhostButton}" Command="{Binding CopyCommand}" Content="Copy ticked" Padding="12,6" Margin="0,0,8,0" />
+                                            <Button Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" Content="Save list…" Padding="14,6" Margin="0,0,8,0" />
+                                            <Button Style="{StaticResource LinkButton}" Command="{Binding OpenFolderCommand}" Content="Show saved file" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <TextBox Style="{StaticResource SearchBox}" Width="260" Tag="Search strings…" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,12,0" />
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="show" Content="All" IsChecked="{Binding Show, Converter={StaticResource Is}, ConverterParameter=All}" />
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="show" Content="Ticked" IsChecked="{Binding Show, Converter={StaticResource Is}, ConverterParameter=Ticked}" />
+                                        <RadioButton Style="{StaticResource Chip}" GroupName="show" Content="Not ticked" IsChecked="{Binding Show, Converter={StaticResource Is}, ConverterParameter=NotTicked}" />
+                                        <TextBlock Style="{StaticResource Sub}" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="12">
+                                            <Run Text="{Binding VisibleRows, Mode=OneWay}" /> <Run Text="shown" />
+                                        </TextBlock>
+                                    </DockPanel>
+                                </StackPanel>
+                                <DataGrid x:Name="StringsGrid" ItemsSource="{Binding RowsView}" SelectionMode="Extended" Tag="No strings: the two games hold the same things.">
+                                    <DataGrid.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Copy selected" InputGestureText="Ctrl+C"
+                                                      Command="{Binding PlacementTarget.DataContext.CopySelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <MenuItem Header="Tick selected (add to the list)"
+                                                      Command="{Binding PlacementTarget.DataContext.TickSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <MenuItem Header="Untick selected (leave out of the list)"
+                                                      Command="{Binding PlacementTarget.DataContext.UntickSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        </ContextMenu>
+                                    </DataGrid.ContextMenu>
+                                    <DataGrid.Columns>
+                                        <DataGridTemplateColumn Header="In list" Width="64" MinWidth="58" SortMemberPath="Include">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding Include, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                              ToolTip="Ticked strings go in the saved list" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="String" Binding="{Binding Text}" Width="*" ElementStyle="{StaticResource Mono}" />
+                                        <DataGridTemplateColumn Header="Proof" Width="110" MinWidth="90" SortMemberPath="Status">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" ToolTip="{Binding Note}">
+                                                        <Ellipse Width="8" Height="8" Fill="{Binding Tone, Converter={StaticResource Tone}}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding Status}" Style="{StaticResource Plain}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="110" ElementStyle="{StaticResource Faint}" />
+                                        <DataGridTextColumn Header="Package (classes in it)" Binding="{Binding Group}" Width="220" ElementStyle="{StaticResource Faint}" />
+                                        <DataGridTextColumn Header="Why" Binding="{Binding Note}" Width="300" ElementStyle="{StaticResource Faint}" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- ================= Help ================= -->
+                <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="{Binding Page, Converter={StaticResource PageVis}, ConverterParameter=Help}">
+                    <StackPanel Margin="32,24,32,32" MaxWidth="860" HorizontalAlignment="Left">
+                        <TextBlock Text="Help" Style="{StaticResource H1}" />
+
+                        <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                            <StackPanel>
+                                <TextBlock Text="What it does" Style="{StaticResource H2}" />
+                                <TextBlock Style="{StaticResource HelpText}"
+                                           Text="Makes a list of strings that prove a particular cheat client is loaded, for Client Parser (or a manual search in System Informer). It compares two copies of the same game: one clean, one with the client injected. Game memory and files are only read; nothing is run, injected or changed." />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="How to use it" Style="{StaticResource H2}" />
+                                <TextBlock Style="{StaticResource HelpText}"
+                                           Text="1. On a test PC, start the same game twice from the same profile (same version, same mods).&#10;2. Leave both on the title screen. Inject the client into one of them; touch nothing else.&#10;3. Run this tool as administrator, press Refresh, pick the clean game and the injected game, and Compare.&#10;4. Save the list.&#10;5. Best: close the injected game, start it again, inject again, Compare again, and press Cross-check with the first list. Only strings the client brings every time stay ticked - random names that change each injection drop out. Save that list.&#10;6. Load the list in Client Parser on the player's PC." />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="How it keeps the list clean" Style="{StaticResource H2}" />
+                                <TextBlock Style="{StaticResource HelpText}"
+                                           Text="• All of both games' memory is read - heap, class data, loaded DLLs and mapped files - as ASCII and UTF-16.&#10;• Each game is read twice. A string counts only if the injected game holds it both times and the clean game neither time: passing garbage and things the clean game loads a little later drop out.&#10;• Numbers are blanked before comparing ([12:04:31] Loaded 812 recipes = [#:#:#] Loaded # recipes), so times, counters and IDs never count as a difference.&#10;• Only properly stored strings count (with the length Java keeps in front of them, or ended by zeros like a program's own text). Pieces of strings left in freed memory differ between any two processes and are ignored.&#10;• Java's, Minecraft's and the common libraries' own classes, and file paths, never go in the list.&#10;• Finally the list is searched for in both games exactly the way Client Parser searches. Anything the clean game holds - even inside longer text, even with a few characters cut off either end - is dropped. A saved list finds nothing in the clean game." />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Choosing what goes in the list" Style="{StaticResource H2}" />
+                                <TextBlock Style="{StaticResource HelpText}">
+                                    <Run Text="Proven" FontWeight="SemiBold" Foreground="{StaticResource Ok}" /><Run Text=" strings passed every check and start ticked. " />
+                                    <Run Text="Not proven" FontWeight="SemiBold" /><Run Text=" strings only the injected game holds too, but fell below the list's cut-off or sit inside longer text - the Why column says which. Tick any you recognise as the client's (right-click to tick or untick many at once); untick anything you do not want." />
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource HelpText}"
+                                           Text="Search, the All / Ticked / Not ticked chips, Copy selected (Ctrl+C) and Swap ⇄ (if you picked the games the wrong way round) are there to make that quick. Save list… writes only the ticked strings." />
+                                <TextBlock Style="{StaticResource HelpText}"
+                                           Text="Client Parser reports each list as one finding: High when 5 or more of its strings are in the game, Medium for 2-4, Low for one. Never one alarm per string." />
+                                <TextBlock Style="{StaticResource HelpText}"
+                                           Text="Other differences - a DLL or Java agent only the injected game has, or hand-mapped code - are listed above the table: that is how the client got in, and the evidence for native clients whose text is encrypted." />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
